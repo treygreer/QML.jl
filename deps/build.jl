@@ -18,7 +18,7 @@ end
 
 @BinDeps.setup
 
-jlcxx_dir = Pkg.dir("CxxWrap","deps","usr","share","cmake")
+jlcxx_dir = joinpath(dirname(CxxWrap._l_jlcxx), "cmake", "JlCxx")
 
 qmlwrap = library_dependency("qmlwrap", aliases=["libqmlwrap"])
 
