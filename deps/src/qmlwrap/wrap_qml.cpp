@@ -24,7 +24,9 @@
 namespace jlcxx
 {
 
+template<> struct SuperType<QQmlApplicationEngine> { typedef QQmlEngine type; };
 template<> struct SuperType<QQmlContext> { typedef QObject type; };
+template<> struct SuperType<QQmlEngine> { typedef QObject type; };
 template<> struct SuperType<QQmlPropertyMap> { typedef QObject type; };
 template<> struct SuperType<QQuickView> { typedef QQuickWindow type; };
 template<> struct SuperType<QTimer> { typedef QObject type; };
@@ -51,14 +53,15 @@ JULIA_CPP_MODULE_BEGIN(registry)
     .method("context_property", &QQmlContext::contextProperty)
     .method("set_context_object", &QQmlContext::setContextObject)
     .method("set_context_property", static_cast<void(QQmlContext::*)(const QString&, const QVariant&)>(&QQmlContext::setContextProperty))
-    .method("set_context_property", static_cast<void(QQmlContext::*)(const QString&, QObject*)>(&QQmlContext::setContextProperty));
+    .method("set_context_property", static_cast<void(QQmlContext::*)(const QString&, QObject*)>(&QQmlContext::setContextProperty))
+    .method("context_object", &QQmlContext::contextObject);
 
   qml_module.add_type<QQmlEngine>("QQmlEngine", julia_type<QObject>())
     .method("root_context", &QQmlEngine::rootContext);
 
   qml_module.add_type<QQmlApplicationEngine>("QQmlApplicationEngine", julia_type<QQmlEngine>())
     .constructor<QString>() // Construct with path to QML
-    .method("load", [] (QQmlApplicationEngine* e, const QString& qmlpath)
+    .method("load_into_engine", [] (QQmlApplicationEngine* e, const QString& qmlpath)
     {
       bool success = false;
       auto conn = QObject::connect(e, &QQmlApplicationEngine::objectCreated, [&] (QObject* obj, const QUrl& url) { success = (obj != nullptr); });
@@ -147,50 +150,48 @@ JULIA_CPP_MODULE_BEGIN(registry)
       });
     });
 
-  // Emit signals helper
-  qml_module.method("emit", [](const char* signal_name, jlcxx::ArrayRef<jl_value_t*> args)
-  {
-    using namespace qmlwrap;
-    JuliaSignals* julia_signals = JuliaAPI::instance()->juliaSignals();
-    if(julia_signals == nullptr)
-    {
-      throw std::runtime_error("No signals available");
-    }
-    julia_signals->emit_signal(signal_name, args);
-  });
+      // Emit signals helper
+      qml_module.method("emit", [](const char *signal_name, jlcxx::ArrayRef<jl_value_t *> args) {
+        using namespace qmlwrap;
+        JuliaSignals *julia_signals = JuliaAPI::instance()->juliaSignals();
+        if (julia_signals == nullptr)
+        {
+          throw std::runtime_error("No signals available");
+        }
+        julia_signals->emit_signal(signal_name, args);
+      });
 
-  // Function to register a function
-  qml_module.method("qmlfunction", [](const QString& name, jl_function_t* f)
-  {
-    qmlwrap::JuliaAPI::instance()->register_function(name, f);
-  });
+      // Function to register a function
+      qml_module.method("qmlfunction", [](const QString &name, jl_function_t *f) {
+        qmlwrap::JuliaAPI::instance()->register_function(name, f);
+      });
 
-  qml_module.add_type<qmlwrap::JuliaDisplay>("JuliaDisplay", julia_type("CppDisplay"))
-    .method("load_png", &qmlwrap::JuliaDisplay::load_png);
+      qml_module.add_type<qmlwrap::JuliaDisplay>("JuliaDisplay", julia_type("CppDisplay"))
+          .method("load_png", &qmlwrap::JuliaDisplay::load_png);
 
-  qml_module.add_type<QPaintDevice>("QPaintDevice")
-    .method("width", &QPaintDevice::width)
-    .method("height", &QPaintDevice::height)
-    .method("logicalDpiX", &QPaintDevice::logicalDpiX)
-    .method("logicalDpiY", &QPaintDevice::logicalDpiY);
-  qml_module.add_type<QPainter>("QPainter")
-    .method("device", &QPainter::device);
+      qml_module.add_type<QPaintDevice>("QPaintDevice")
+          .method("width", &QPaintDevice::width)
+          .method("height", &QPaintDevice::height)
+          .method("logicalDpiX", &QPaintDevice::logicalDpiX)
+          .method("logicalDpiY", &QPaintDevice::logicalDpiY);
+      qml_module.add_type<QPainter>("QPainter")
+          .method("device", &QPainter::device);
 
-  qml_module.add_type<qmlwrap::ListModel>("ListModel", julia_type<QObject>())
-    .constructor<const jlcxx::ArrayRef<jl_value_t*>&>()
-    .constructor<const jlcxx::ArrayRef<jl_value_t*>&, jl_function_t*>()
-    .method("setconstructor", &qmlwrap::ListModel::setconstructor)
-    .method("removerole", static_cast<void (qmlwrap::ListModel::*)(const int)>(&qmlwrap::ListModel::removerole))
-    .method("removerole", static_cast<void (qmlwrap::ListModel::*)(const std::string&)>(&qmlwrap::ListModel::removerole));
-  qml_module.method("addrole", [] (qmlwrap::ListModel& m, const std::string& role, jl_function_t* getter) { m.addrole(role, getter); });
-  qml_module.method("addrole", [] (qmlwrap::ListModel& m, const std::string& role, jl_function_t* getter, jl_function_t* setter) { m.addrole(role, getter, setter); });
-  qml_module.method("setrole", [] (qmlwrap::ListModel& m, const int idx, const std::string& role, jl_function_t* getter) { m.setrole(idx, role, getter); });
-  qml_module.method("setrole", [] (qmlwrap::ListModel& m, const int idx, const std::string& role, jl_function_t* getter, jl_function_t* setter) { m.setrole(idx, role, getter, setter); });
+      qml_module.add_type<qmlwrap::ListModel>("ListModel", julia_type<QObject>())
+          .constructor<const jlcxx::ArrayRef<jl_value_t *> &>()
+          .constructor<const jlcxx::ArrayRef<jl_value_t *> &, jl_function_t *>()
+          .method("setconstructor", &qmlwrap::ListModel::setconstructor)
+          .method("removerole", static_cast<void (qmlwrap::ListModel::*)(const int)>(&qmlwrap::ListModel::removerole))
+          .method("removerole", static_cast<void (qmlwrap::ListModel::*)(const std::string &)>(&qmlwrap::ListModel::removerole));
+      qml_module.method("addrole", [](qmlwrap::ListModel &m, const std::string &role, jl_function_t *getter) { m.addrole(role, getter); });
+      qml_module.method("addrole", [](qmlwrap::ListModel &m, const std::string &role, jl_function_t *getter, jl_function_t *setter) { m.addrole(role, getter, setter); });
+      qml_module.method("setrole", [](qmlwrap::ListModel &m, const int idx, const std::string &role, jl_function_t *getter) { m.setrole(idx, role, getter); });
+      qml_module.method("setrole", [](qmlwrap::ListModel &m, const int idx, const std::string &role, jl_function_t *getter, jl_function_t *setter) { m.setrole(idx, role, getter, setter); });
 
-  qml_module.add_type<QVariantMap>("QVariantMap");
-  qml_module.method("getindex", [](const QVariantMap& m, const QString& key) { return jlcxx::convert_to_julia(m[key]).value; });
+      qml_module.add_type<QVariantMap>("QVariantMap");
+      qml_module.method("getindex", [](const QVariantMap &m, const QString &key) { return jlcxx::convert_to_julia(m[key]).value; });
 
-  // Exports:
-  qml_module.export_symbols("QQmlContext", "set_context_property", "root_context", "load", "qt_prefix_path", "set_source", "engine", "QByteArray", "QQmlComponent", "set_data", "create", "QQuickItem", "content_item", "QTimer", "context_property", "emit", "JuliaDisplay", "init_application", "qmlcontext", "init_qmlapplicationengine", "init_qmlengine", "init_qquickview", "exec", "exec_async", "ListModel", "addrole", "setconstructor", "removerole", "setrole", "QVariantMap");
-  qml_module.export_symbols("QPainter", "device", "width", "height", "logicalDpiX", "logicalDpiY", "QQuickWindow", "effectiveDevicePixelRatio", "window", "JuliaPaintedItem", "update");
-JULIA_CPP_MODULE_END
+      // Exports:
+      qml_module.export_symbols("QQmlContext", "set_context_property", "root_context", "qt_prefix_path", "set_source", "engine", "QByteArray", "QQmlComponent", "set_data", "create", "QQuickItem", "content_item", "QTimer", "context_property", "emit", "JuliaDisplay", "init_application", "qmlcontext", "init_qmlapplicationengine", "init_qmlengine", "init_qquickview", "exec", "exec_async", "ListModel", "addrole", "setconstructor", "removerole", "setrole", "QVariantMap");
+      qml_module.export_symbols("QPainter", "device", "width", "height", "logicalDpiX", "logicalDpiY", "QQuickWindow", "effectiveDevicePixelRatio", "window", "JuliaPaintedItem", "update");
+      JULIA_CPP_MODULE_END
