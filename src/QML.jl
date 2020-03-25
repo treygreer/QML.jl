@@ -1,7 +1,7 @@
 module QML
 
 export QVariant, QString, QUrl
-export QQmlContext, root_context, load, qt_prefix_path, set_source, engine, QByteArray, to_string, QQmlComponent, set_data, create, QQuickItem, content_item, JuliaObject, QTimer, context_property, emit, JuliaDisplay, init_application, qmlcontext, init_qmlapplicationengine, init_qmlengine, init_qquickview, exec, exec_async, ListModel, addrole, setconstructor, removerole, setrole, roles, QVariantMap
+export QQmlContext, root_context, load, qt_prefix_path, set_source, engine, QByteArray, to_string, QQmlComponent, set_data, create, QQuickItem, content_item, JuliaObject, QTimer, context_property, emit, JuliaCanvas, JuliaDisplay, init_application, qmlcontext, init_qmlapplicationengine, init_qmlengine, init_qquickview, exec, exec_async, ListModel, addrole, setconstructor, removerole, setrole, roles, QVariantMap
 export QStringList, QVariantList
 export QPainter, device, width, height, logicalDpiX, logicalDpiY, QQuickWindow, effectiveDevicePixelRatio, window, JuliaPaintedItem, update
 export @emit, @qmlfunction, qmlfunction, load, QQmlPropertyMap
@@ -22,6 +22,7 @@ using Observables
 using FileIO
 import Libdl
 using Requires
+using ColorTypes
 
 const envfile = joinpath(dirname(dirname(@__FILE__)), "deps", "env.jl")
 if isfile(envfile)
@@ -263,6 +264,17 @@ end
 function qmlapp(path::AbstractString)
   qml_engine = init_qmlapplicationengine()
   return load_into_engine(qml_engine, path)
+end
+
+function Base.copy!(dest::JuliaCanvas, src::Array{ARGB32, 2})
+  (height, width) = Base.size(src)
+  println("copy!:  height=$height, width=$width")
+  src = permutedims(src)  # julia arrays are row-major; Qt expects scan lines
+  src = reshape(src, :)
+  src = reinterpret(UInt8, src)
+  src2 = copy(src)
+  println("calling load_image...  typeof(src2) = $(typeof(src2))")
+  load_image(dest, src2, width, height)
 end
 
 function Base.display(d::JuliaDisplay, x)
