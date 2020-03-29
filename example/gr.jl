@@ -16,8 +16,9 @@ A = Observable(1.0)
 # Arguments here need to be the "reference types", hence the "Ref" suffix
 function paint(p::CxxPtr{QPainter}, item::CxxPtr{JuliaPaintedItem})  
   ENV["GKS_WSTYPE"] = 381
-    ENV["GKS_CONID"] = split(repr(p.cpp_object), "@")[2]
-    println("GKS_CONID = $(ENV["GKS_CONID"])")
+  ENV["GKS_CONID"] = split(repr(p.cpp_object), "@")[2]
+  ENV["GKS_QT_VERSION"] = 5
+  println("GKS_CONID = $(ENV["GKS_CONID"])")
 
   dev = device(p[])[]
   r = effectiveDevicePixelRatio(window(item[])[])
